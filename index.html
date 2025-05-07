@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeForge</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f111a;
+      --panel: #1b1e2b;
+      --border: #2c2f3a;
+      --accent: #5f9fff;
+      --text: #f5f5f5;
+      --muted: #aaa;
+      --radius: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'JetBrains Mono', monospace;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1rem;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.2rem;
+    }
+
+    .workspace {
+      flex: 1;
+      display: flex;
+      background: var(--border);
+      overflow: auto;
+    }
+
+    .panel {
+      background: var(--panel);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      overflow: auto;
+      resize: both;
+      min-width: 200px;
+      min-height: 150px;
+    }
+
+    .panel h2 {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    textarea {
+      flex: 1;
+      background: #0f111a;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.5rem;
+      resize: vertical;
+      font-size: 0.85rem;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+      border-radius: var(--radius);
+    }
+
+    .controls {
+      background: var(--panel);
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .file-tag {
+      background: #2e334a;
+      border-radius: var(--radius);
+      padding: 0.3rem 0.6rem;
+      margin: 0.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+    }
+
+    .file-tag button {
+      background: none;
+      border: none;
+      color: #f66;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .file-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-left: 1rem;
+    }
+
+    .popup-warning {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: black;
+      color: lime;
+      padding: 1.5rem;
+      border: 2px solid lime;
+      border-radius: var(--radius);
+      z-index: 1000;
+      font-size: 1rem;
+      animation: bobbing 3s ease-in-out infinite; 
+    }
+
+    @keyframes bobbing {
+      0% {
+        transform: translateX(-50%) translateY(0);
+      }
+      50% {
+        transform: translateX(-50%) translateY(-10px); 
+      }
+      100% {
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <span>CodeForge          <br> <br>  Refreshes every two seconds!</span>
+    <div>
+      <button onclick="downloadFiles()">Download all files ⬇</button>
+      <button onclick="updatePreview()">Run ▶</button>
+      <button onclick="openInNewTab()">Open in New Tab ↗</button>
+    </div>
+  </header>
+  <div class="workspace" id="workspace">
+    <div class="panel">
+      <h2>HTML</h2>
+      <textarea id="html" spellcheck="false">Enter HTML...
+</textarea>
+    </div>
+    <div class="panel">
+      <h2>CSS</h2>
+      <textarea id="css" spellcheck="false">Enter CSS...</textarea>
+    </div>
+    <div class="panel">
+      <h2>JS</h2>
+      <textarea id="js" spellcheck="false">Enter JavaScript...</textarea>
+    </div>
+    <div class="panel">
+      <h2>Preview</h2>
+      <iframe id="preview"></iframe>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="file-list" id="file-list"></div>
+  </div>
+
+  <div class="popup-warning" id="popup-warning">
+    Console doesn't work sorry!
+  </div> 
+
+  </div>
+
+  <script>
+    const uploadedFiles = { css: [], js: [], images: [] };
+    const iframe = document.getElementById("preview");
+    const consolePopup = document.getElementById("console-popup");
+    const consoleContent = document.getElementById("console-popup-content");
+    const workspace = document.getElementById("workspace");
+
+    function updatePreview() {
+      const html = document.getElementById("html")?.value || "";
+      const css = '<style>' + (document.getElementById("css")?.value || "") + '</style>';
+      const js = '<script>' + (document.getElementById("js")?.value || "") + '<\/script>';
+
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(html + css + js);
+
+      uploadedFiles.css.forEach(file => {
+        const link = doc.createElement("link");
+        link.rel = "stylesheet";
+        link.href = file.url;
+        doc.head.appendChild(link);
+      });
+
+      uploadedFiles.js.forEach(file => {
+        const script = doc.createElement("script");
+        script.src = file.url;
+        doc.body.appendChild(script);
+      });
+
+      uploadedFiles.images.forEach(file => {
+        const img = doc.createElement("img");
+        img.src = file.url;
+        img.style.maxWidth = "120px";
+        img.style.marginTop = "10px";
+        doc.body.appendChild(img);
+      });
+
+      doc.close();
+    }
+
+    function openInNewTab() {
+      const html = document.getElementById("html")?.value || "";
+      const css = '<style>' + (document.getElementById("css")?.value || "") + '</style>';
+      const js = '<script>' + (document.getElementById("js")?.value || "") + '<\/script>';
+      const blob = new Blob([html + css + js], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    }
+
+    // New function to download all files as a ZIP
+    function downloadFiles() {
+      const zip = new JSZip();
+
+      // Adding HTML, CSS, and JS contents to the ZIP file
+      zip.file("index.html", document.getElementById("html").value || "");
+      zip.file("style.css", document.getElementById("css").value || "");
+      zip.file("script.js", document.getElementById("js").value || "");
+
+      // If there are any images, add them as well
+      uploadedFiles.images.forEach((file, index) => {
+        zip.file(`image${index + 1}.jpg`, file.url, { binary: true });
+      });
+
+      // Generate the ZIP file and trigger the download
+      zip.generateAsync({ type: "blob" }).then(function(content) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(content);
+        link.download = 'code.zip';
+        link.click();
+      });
+    }
+
+
+    setInterval(updatePreview, 1200);
+  </script>
+</body>
+</html>
